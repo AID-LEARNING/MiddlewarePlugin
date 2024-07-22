@@ -27,24 +27,36 @@ use Error;
 use Exception;
 use pocketmine\event\EventPriority;
 use pocketmine\event\server\DataPacketReceiveEvent;
+use pocketmine\network\mcpe\handler\LoginPacketHandler;
+use pocketmine\network\mcpe\handler\SpawnResponsePacketHandler;
+use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\LoginPacket;
 use pocketmine\network\mcpe\protocol\SetLocalPlayerAsInitializedPacket;
 use SenseiTarzan\ExtraEvent\Class\EventAttribute;
 use SenseiTarzan\Middleware\Component\MiddlewareManager;
 use SOFe\AwaitGenerator\Await;
+use WeakMap;
 
 class PacketListener
 {
+
+	/** @var WeakMap<NetworkSession, bool> */
+	private WeakMap $noDuplicateSetLocalPlayerPacket;
+
+	public function __construct()
+	{
+		$this->noDuplicateSetLocalPlayerPacket = new WeakMap();
+	}
 
 	#[EventAttribute(EventPriority::MONITOR)]
 	public function onDataReceive(DataPacketReceiveEvent $event) : void
 	{
 		$packet = $event->getPacket();
-		if ($packet instanceof LoginPacket)
+		$origin = $event->getOrigin();
+		$handlerBefore = $origin->getHandler();
+		if ($handlerBefore instanceof LoginPacketHandler && $packet instanceof LoginPacket)
 		{
 			$event->cancel();
-			$origin = $event->getOrigin();
-			$handlerBefore = $origin->getHandler();
 			$origin->setHandler(null);
 			$listResolve = MiddlewareManager::getInstance()->getPromiseWithPacket($packet, $event);
 			Await::g2c(Await::all($listResolve), function (array $allResolve) use ($origin, $handlerBefore, $packet) {
@@ -69,35 +81,33 @@ class PacketListener
 				if (!$origin->getHandler()->handleLogin($packet))
 					$origin->disconnect("Error handling Login");
 			});
-		}elseif ($packet instanceof SetLocalPlayerAsInitializedPacket)
+		}elseif ($handlerBefore instanceof SpawnResponsePacketHandler && $packet instanceof SetLocalPlayerAsInitializedPacket)
 		{
 			$event->cancel();
-			$origin = $event->getOrigin();
-			$handlerBefore = $origin->getHandler();
-			$origin->setHandler(null);
-			$listResolve = MiddlewareManager::getInstance()->getPromiseWithPacket($packet, $event);
-			Await::g2c(Await::all($listResolve), function (array $allResolve) use ($origin, $handlerBefore, $packet) {
-				/**
-				 * @var Error|Exception $error
-				 */
-				$error = null;
-				foreach ($allResolve as $resolve)
-				{
-					if ($resolve instanceof Error || $resolve instanceof Exception)
-					{
-						$error = $resolve;
-						break ;
+			if (!($this->noDuplicateSetLocalPlayerPacket[$origin] ?? false)) {
+				$origin->setHandler(null);
+				$this->noDuplicateSetLocalPlayerPacket[$origin] = true;
+				$listResolve = MiddlewareManager::getInstance()->getPromiseWithPacket($packet, $event);
+				Await::g2c(Await::all($listResolve), function (array $allResolve) use ($origin, $handlerBefore, $packet) {
+					/**
+					 * @var Error|Exception $error
+					 */
+					$error = null;
+					foreach ($allResolve as $resolve) {
+						if ($resolve instanceof Error || $resolve instanceof Exception) {
+							$error = $resolve;
+							break;
+						}
 					}
-				}
-				if ($error)
-				{
-					$origin->disconnect($error->getMessage());
-					return;
-				}
-				$origin->setHandler($handlerBefore);
-				if (!$origin->getHandler()->handleSetLocalPlayerAsInitialized($packet))
-					$origin->disconnect("Error handling SetLocalPlayer");
-			});
+					if ($error) {
+						$origin->disconnect($error->getMessage());
+						return;
+					}
+					$origin->setHandler($handlerBefore);
+					if (!$origin->getHandler()->handleSetLocalPlayerAsInitialized($packet))
+						$origin->disconnect("Error handling SetLocalPlayer");
+				});
+			}
 		}
 	}
 }

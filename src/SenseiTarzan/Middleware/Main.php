@@ -38,7 +38,7 @@ class Main extends PluginBase
 
 	protected function onEnable() : void
 	{
-		EventLoader::loadEventWithClass($this, PacketListener::class);
+		EventLoader::loadEventWithClass($this, new PacketListener());
 	}
 
 	public static function getInstance() : Main

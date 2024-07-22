@@ -1,0 +1,7 @@
+.idea
+out
+.phar
+.bat
+.sh
+vendor
+.php-cs-fixer.cache

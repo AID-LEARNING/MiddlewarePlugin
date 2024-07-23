@@ -23,11 +23,14 @@ declare(strict_types=1);
 
 namespace SenseiTarzan\Middleware\Component;
 
+use Generator;
 use pocketmine\event\server\DataPacketReceiveEvent;
 use pocketmine\network\mcpe\protocol\LoginPacket;
 use pocketmine\network\mcpe\protocol\SetLocalPlayerAsInitializedPacket;
 use pocketmine\utils\SingletonTrait;
+use SenseiTarzan\Middleware\Class\AttributeMiddlewarePriority;
 use SenseiTarzan\Middleware\Class\IMiddleWare;
+use SenseiTarzan\Middleware\Class\MiddlewarePriority;
 use SenseiTarzan\Middleware\Main;
 use function array_filter;
 use function array_map;
@@ -37,8 +40,13 @@ final class MiddlewareManager
 {
 	use SingletonTrait;
 
-	/** @var IMiddleWare[] */
+	/** @var IMiddleWare[][][] */
 	private array $listMiddleware = [];
+
+	/**
+	 * @var IMiddleWare[][]
+	 */
+	private array $middlewareCache = [];
 
 	public function getListMiddleware() : array
 	{
@@ -48,26 +56,45 @@ final class MiddlewareManager
 	public function addMiddleware(IMiddleWare $middleware) : void
 	{
 		Main::getInstance()->getLogger()->info("Adding Middleware: " . get_class($middleware));
-		$this->listMiddleware[$middleware->getName()] = $middleware;
-	}
-
-	public function getListMiddlewareWithPacket(LoginPacket|SetLocalPlayerAsInitializedPacket $packet) : array
-	{
-		return array_filter(
-			$this->listMiddleware,
-			function (IMiddleWare $middleware) use ($packet) : bool {
-				return $packet instanceof ($middleware->onDetectPacket());
-			}
-		);
+		$middlewarePriority = MiddlewarePriority::NORMAL;
+		$reflectClass = new \ReflectionClass($middleware);
+		$attributes = $reflectClass->getAttributes(AttributeMiddlewarePriority::class);
+		if (!empty($attributes)) {
+			/**
+			 * @var AttributeMiddlewarePriority $priority
+			 */
+			$priority = $attributes[0]->newInstance();
+			$middlewarePriority = $priority->getPriority();
+		}
+		if (!isset($this->listMiddleware[$middleware->onDetectPacket()][$middlewarePriority])) {
+			$this->listMiddleware[$middleware->onDetectPacket()][$middlewarePriority] = [];
+		}
+		$this->listMiddleware[$middleware->onDetectPacket()][$middlewarePriority][] = $middleware;
 	}
 
 	/**
-	 * @return array<\Generator>
+	 * @param LoginPacket|SetLocalPlayerAsInitializedPacket $packet
+	 * @return IMiddleWare[][]
+	 */
+	public function getListMiddlewaresWithPacket(LoginPacket|SetLocalPlayerAsInitializedPacket $packet) : array
+	{
+		return $this->listMiddleware[$packet::class];
+	}
+
+	/**
+	 * @return Generator[]
 	 */
 	public function getPromiseWithPacket(LoginPacket|SetLocalPlayerAsInitializedPacket $packet, DataPacketReceiveEvent $event) : array
 	{
-		return array_map(function (IMiddleWare $middleware) use($event) {
-			return $middleware->getPromise($event);
-		}, $this->getListMiddlewareWithPacket($packet));
+		if (!isset($this->middlewareCache[$packet::class]))
+		{
+			$this->middlewareCache[$packet::class] = [];
+			$listMiddlewares = $this->getListMiddlewaresWithPacket($packet);
+			krsort($listMiddlewares);
+			foreach ($listMiddlewares as $listMiddleware)
+				foreach ($listMiddleware as $middleware)
+					$this->middlewareCache[$packet::class][$middleware->getName()] = $middleware;
+		}
+		return array_map(fn(IMiddleWare $middleware) => $middleware->getPromise($event), $this->middlewareCache[$packet::class]);
 	}
 }

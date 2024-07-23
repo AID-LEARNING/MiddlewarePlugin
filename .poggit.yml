@@ -1,6 +1,7 @@
 ---
 branches:
   - master
+  - next-major
 projects:
   Middleware:
     path: ""

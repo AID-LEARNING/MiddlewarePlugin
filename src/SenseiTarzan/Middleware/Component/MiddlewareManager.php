@@ -32,6 +32,7 @@ use SenseiTarzan\Middleware\Class\AttributeMiddlewarePriority;
 use SenseiTarzan\Middleware\Class\IMiddleWare;
 use SenseiTarzan\Middleware\Class\MiddlewarePriority;
 use SenseiTarzan\Middleware\Main;
+use SOFe\AwaitGenerator\Await;
 use function array_keys;
 use function array_map;
 use function get_class;
@@ -82,7 +83,7 @@ final class MiddlewareManager
 	/**
 	 * @return Generator[]
 	 */
-	public function getPromiseWithPacket(LoginPacket|SetLocalPlayerAsInitializedPacket $packet, DataPacketReceiveEvent $event) : array
+	public function getPromiseWithPacket(LoginPacket|SetLocalPlayerAsInitializedPacket $packet, DataPacketReceiveEvent $event) : Generator
 	{
 		if (!isset($this->middlewareCache[$packet::class]))
 		{
@@ -96,6 +97,12 @@ final class MiddlewareManager
 					$this->middlewareCache[$packet::class][$middleware->getName()] = $middleware;
 			}
 		}
-		return array_map(fn(IMiddleWare $middleware) => $middleware->getPromise($event), $this->middlewareCache[$packet::class]);
+		return Await::promise(function ($resolve, $reject) use ($event, $packet) : void {
+			Await::f2c(function () use ($packet, $event) {
+				foreach ($this->middlewareCache[$packet::class] as $middleware) {
+					yield from $middleware->getPromise($event);
+				}
+			}, $resolve, $reject);
+		});
 	}
 }

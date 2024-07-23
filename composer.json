@@ -18,5 +18,8 @@
     "friendsofphp/php-cs-fixer": "^v3.59.3",
     "pocketmine/pocketmine-mp": "5.17.0",
     "sof3/await-generator": "^3.6"
+  },
+  "scripts": {
+    "php-cs-fixer": "D:\\PHP-8.0-Windows-x64\\PM5\\bin\\php\\php.exe php-cs-fixer-v3.phar fix"
   }
 }

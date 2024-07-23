@@ -32,9 +32,10 @@ use SenseiTarzan\Middleware\Class\AttributeMiddlewarePriority;
 use SenseiTarzan\Middleware\Class\IMiddleWare;
 use SenseiTarzan\Middleware\Class\MiddlewarePriority;
 use SenseiTarzan\Middleware\Main;
-use function array_filter;
+use function array_keys;
 use function array_map;
 use function get_class;
+use function var_dump;
 
 final class MiddlewareManager
 {
@@ -43,9 +44,7 @@ final class MiddlewareManager
 	/** @var IMiddleWare[][][] */
 	private array $listMiddleware = [];
 
-	/**
-	 * @var IMiddleWare[][]
-	 */
+	/** @var IMiddleWare[][] */
 	private array $middlewareCache = [];
 
 	public function getListMiddleware() : array
@@ -73,7 +72,6 @@ final class MiddlewareManager
 	}
 
 	/**
-	 * @param LoginPacket|SetLocalPlayerAsInitializedPacket $packet
 	 * @return IMiddleWare[][]
 	 */
 	public function getListMiddlewaresWithPacket(LoginPacket|SetLocalPlayerAsInitializedPacket $packet) : array
@@ -90,10 +88,13 @@ final class MiddlewareManager
 		{
 			$this->middlewareCache[$packet::class] = [];
 			$listMiddlewares = $this->getListMiddlewaresWithPacket($packet);
-			krsort($listMiddlewares);
-			foreach ($listMiddlewares as $listMiddleware)
-				foreach ($listMiddleware as $middleware)
+			foreach (MiddlewarePriority::ALL as $priority)
+			{
+				if (!isset($listMiddlewares[$priority]))
+					continue;
+				foreach ($listMiddlewares[$priority] as $middleware)
 					$this->middlewareCache[$packet::class][$middleware->getName()] = $middleware;
+			}
 		}
 		return array_map(fn(IMiddleWare $middleware) => $middleware->getPromise($event), $this->middlewareCache[$packet::class]);
 	}

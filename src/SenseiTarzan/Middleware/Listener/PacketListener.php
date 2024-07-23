@@ -58,8 +58,7 @@ class PacketListener
 		{
 			$event->cancel();
 			$origin->setHandler(null);
-			$listResolve = MiddlewareManager::getInstance()->getPromiseWithPacket($packet, $event);
-			Await::g2c(Await::all($listResolve), function () use ($origin, $handlerBefore, $packet) {
+			Await::g2c(MiddlewareManager::getInstance()->getPromiseWithPacket($packet, $event), function () use ($origin, $handlerBefore, $packet) {
 				$origin->setHandler($handlerBefore);
 				if (!$origin->getHandler()->handleLogin($packet))
 					$origin->disconnect("Error handling Login");
@@ -75,8 +74,7 @@ class PacketListener
 			if (!($this->noDuplicateSetLocalPlayerPacket[$origin] ?? false)) {
 				$origin->setHandler(null);
 				$this->noDuplicateSetLocalPlayerPacket[$origin] = true;
-				$listResolve = MiddlewareManager::getInstance()->getPromiseWithPacket($packet, $event);
-				Await::g2c(Await::all($listResolve), function () use ($origin, $handlerBefore, $packet) {
+				Await::g2c(MiddlewareManager::getInstance()->getPromiseWithPacket($packet, $event), function () use ($origin, $handlerBefore, $packet) {
 					$origin->setHandler($handlerBefore);
 					if (!$origin->getHandler()->handleSetLocalPlayerAsInitialized($packet))
 						$origin->disconnect("Error handling SetLocalPlayer");

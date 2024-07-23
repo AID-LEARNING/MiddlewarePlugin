@@ -78,7 +78,7 @@ final class MiddlewareManager
 	 */
 	public function getListMiddlewaresWithPacket(LoginPacket|SetLocalPlayerAsInitializedPacket $packet) : array
 	{
-		return $this->listMiddleware[$packet::class];
+		return $this->listMiddleware[$packet::class] ?? [];
 	}
 
 	/**

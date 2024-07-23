@@ -59,27 +59,15 @@ class PacketListener
 			$event->cancel();
 			$origin->setHandler(null);
 			$listResolve = MiddlewareManager::getInstance()->getPromiseWithPacket($packet, $event);
-			Await::g2c(Await::all($listResolve), function (array $allResolve) use ($origin, $handlerBefore, $packet) {
-				/**
-				 * @var Error|Exception $error
-				 */
-				$error = null;
-				foreach ($allResolve as $resolve)
-				{
-					if ($resolve instanceof Error || $resolve instanceof Exception)
-					{
-						$error = $resolve;
-						break ;
-					}
-				}
-				if ($error)
-				{
-					$origin->disconnect($error->getMessage());
-					return;
-				}
+			Await::g2c(Await::all($listResolve), function () use ($origin, $handlerBefore, $packet) {
 				$origin->setHandler($handlerBefore);
 				if (!$origin->getHandler()->handleLogin($packet))
 					$origin->disconnect("Error handling Login");
+			}, function (\Throwable $throwable) use ($origin) {
+				$message = "";
+				if ($throwable instanceof Error || $throwable instanceof Exception)
+					$message = $throwable->getMessage();
+				$origin->disconnect($message);
 			});
 		}elseif ($handlerBefore instanceof SpawnResponsePacketHandler && $packet instanceof SetLocalPlayerAsInitializedPacket)
 		{
@@ -88,24 +76,15 @@ class PacketListener
 				$origin->setHandler(null);
 				$this->noDuplicateSetLocalPlayerPacket[$origin] = true;
 				$listResolve = MiddlewareManager::getInstance()->getPromiseWithPacket($packet, $event);
-				Await::g2c(Await::all($listResolve), function (array $allResolve) use ($origin, $handlerBefore, $packet) {
-					/**
-					 * @var Error|Exception $error
-					 */
-					$error = null;
-					foreach ($allResolve as $resolve) {
-						if ($resolve instanceof Error || $resolve instanceof Exception) {
-							$error = $resolve;
-							break;
-						}
-					}
-					if ($error) {
-						$origin->disconnect($error->getMessage());
-						return;
-					}
+				Await::g2c(Await::all($listResolve), function () use ($origin, $handlerBefore, $packet) {
 					$origin->setHandler($handlerBefore);
 					if (!$origin->getHandler()->handleSetLocalPlayerAsInitialized($packet))
 						$origin->disconnect("Error handling SetLocalPlayer");
+				}, function (\Throwable $throwable) use ($origin) {
+					$message = "";
+					if ($throwable instanceof Error || $throwable instanceof Exception)
+						$message = $throwable->getMessage();
+					$origin->disconnect($message);
 				});
 			}
 		}

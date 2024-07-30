@@ -33,6 +33,7 @@ use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\LoginPacket;
 use pocketmine\network\mcpe\protocol\SetLocalPlayerAsInitializedPacket;
 use SenseiTarzan\ExtraEvent\Class\EventAttribute;
+use SenseiTarzan\Middleware\Class\MiddlewareHandler;
 use SenseiTarzan\Middleware\Component\MiddlewareManager;
 use SOFe\AwaitGenerator\Await;
 use WeakMap;
@@ -57,32 +58,28 @@ class PacketListener
 		if ($handlerBefore instanceof LoginPacketHandler && $packet instanceof LoginPacket)
 		{
 			$event->cancel();
-			$origin->setHandler(null);
+			$origin->setHandler(new MiddlewareHandler());
 			Await::g2c(MiddlewareManager::getInstance()->getPromiseWithPacket($packet, $event), function () use ($origin, $handlerBefore, $packet) {
 				$origin->setHandler($handlerBefore);
-				if (!$origin->getHandler()->handleLogin($packet))
+				if (!($origin->isConnected() && $origin->getHandler()->handleLogin($packet)))
 					$origin->disconnect("Error handling Login");
 			}, function (\Throwable $throwable) use ($origin) {
-				$message = "";
-				if ($throwable instanceof Error || $throwable instanceof Exception)
-					$message = $throwable->getMessage();
-				$origin->disconnect($message);
+				$message = $throwable->getMessage();
+				$origin->disconnect($message, $message);
 			});
 		}elseif ($handlerBefore instanceof SpawnResponsePacketHandler && $packet instanceof SetLocalPlayerAsInitializedPacket)
 		{
 			$event->cancel();
 			if (!($this->noDuplicateSetLocalPlayerPacket[$origin] ?? false)) {
-				$origin->setHandler(null);
+				$origin->setHandler(new MiddlewareHandler());
 				$this->noDuplicateSetLocalPlayerPacket[$origin] = true;
 				Await::g2c(MiddlewareManager::getInstance()->getPromiseWithPacket($packet, $event), function () use ($origin, $handlerBefore, $packet) {
 					$origin->setHandler($handlerBefore);
-					if (!$origin->getHandler()->handleSetLocalPlayerAsInitialized($packet))
+					if (!($origin->isConnected() && $origin->getHandler()->handleSetLocalPlayerAsInitialized($packet)))
 						$origin->disconnect("Error handling SetLocalPlayer");
 				}, function (\Throwable $throwable) use ($origin) {
-					$message = "";
-					if ($throwable instanceof Error || $throwable instanceof Exception)
-						$message = $throwable->getMessage();
-					$origin->disconnect($message);
+					$message = $throwable->getMessage();
+					$origin->disconnect($message, $message);
 				});
 			}
 		}

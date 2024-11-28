@@ -32,6 +32,7 @@ use pocketmine\network\mcpe\handler\SpawnResponsePacketHandler;
 use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\LoginPacket;
 use pocketmine\network\mcpe\protocol\SetLocalPlayerAsInitializedPacket;
+use pocketmine\Server;
 use SenseiTarzan\ExtraEvent\Class\EventAttribute;
 use SenseiTarzan\Middleware\Class\MiddlewareHandler;
 use SenseiTarzan\Middleware\Component\MiddlewareManager;
@@ -64,20 +65,24 @@ class PacketListener
 				if (!($origin->isConnected() && $origin->getHandler()->handleLogin($packet)))
 					$origin->disconnect("Error handling Login");
 			}, function (\Throwable $throwable) use ($origin) {
+				Server::getInstance()->getLogger()->logException($throwable);
 				$message = $throwable->getMessage();
 				$origin->disconnect($message, $message);
 			});
 		}elseif ($handlerBefore instanceof SpawnResponsePacketHandler && $packet instanceof SetLocalPlayerAsInitializedPacket)
 		{
+			$exist = $this->noDuplicateSetLocalPlayerPacket->offsetExists($origin);
 			$event->cancel();
-			if (!($this->noDuplicateSetLocalPlayerPacket[$origin] ?? false)) {
+			$this->noDuplicateSetLocalPlayerPacket[$origin] = true;
+			if (!$exist) {
 				$origin->setHandler(new MiddlewareHandler());
-				$this->noDuplicateSetLocalPlayerPacket[$origin] = true;
 				Await::g2c(MiddlewareManager::getInstance()->getPromiseWithPacket($packet, $event), function () use ($origin, $handlerBefore, $packet) {
 					$origin->setHandler($handlerBefore);
-					if (!($origin->isConnected() && $origin->getHandler()->handleSetLocalPlayerAsInitialized($packet)))
+					if (!($origin->isConnected() && $origin->getHandler()->handleSetLocalPlayerAsInitialized($packet))) {
 						$origin->disconnect("Error handling SetLocalPlayer");
+					}
 				}, function (\Throwable $throwable) use ($origin) {
+					Server::getInstance()->getLogger()->logException($throwable);
 					$message = $throwable->getMessage();
 					$origin->disconnect($message, $message);
 				});

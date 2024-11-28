@@ -1,0 +1,26 @@
+---
+database:
+  # The database type. "sqlite" and "mysql" and "mongodb" are supported.
+  type: mysql
+  # Edit these settings only if you choose "sqlite".
+  mysql:
+    host: 127.0.0.1
+    # Avoid using the "root" user for security reasons.
+    username: root
+    password: ""
+    schema: your_schema
+  mongodb:
+      uri: ""
+      database: ""
+      uriOptions: []
+      driverOptions: []
+      dbOptions: []
+  # The maximum number of simultaneous SQL queries
+  # Recommended: 1 for sqlite, 2 for MySQL. You may want to further increase this value if your MySQL connection is very slow.
+  worker-limit: 2
+redis:
+  option: []
+  # The maximum number of simultaneous SQL queries
+  # Recommended: 2 for part Redis in multi_threading. You may want to further increase this value if your Redis connection is very slow.
+  worker-limit: 2
+...

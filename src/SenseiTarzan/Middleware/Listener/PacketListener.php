@@ -23,8 +23,6 @@ declare(strict_types=1);
 
 namespace SenseiTarzan\Middleware\Listener;
 
-use Error;
-use Exception;
 use pocketmine\event\EventPriority;
 use pocketmine\event\server\DataPacketReceiveEvent;
 use pocketmine\network\mcpe\handler\LoginPacketHandler;

@@ -33,10 +33,7 @@ use SenseiTarzan\Middleware\Class\IMiddleWare;
 use SenseiTarzan\Middleware\Class\MiddlewarePriority;
 use SenseiTarzan\Middleware\Main;
 use SOFe\AwaitGenerator\Await;
-use function array_keys;
-use function array_map;
 use function get_class;
-use function var_dump;
 
 final class MiddlewareManager
 {

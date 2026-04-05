@@ -35,6 +35,10 @@ use SenseiTarzan\Middleware\Listener\PacketListener;
 use SenseiTarzan\Mongodm\Class\MongoConfig;
 use SenseiTarzan\Mongodm\libmongodm;
 use SenseiTarzan\Mongodm\MongodmManager;
+use function define;
+use function ini_set;
+use function intval;
+use function register_shutdown_function;
 
 class Main extends PluginBase
 {
@@ -42,9 +46,7 @@ class Main extends PluginBase
 	private DataConnectorImpl|MongodmManager|null $dataConnector = null;
 	private RedisManager|null $redisConnector = null;
 
-	/**
-	 * @var Closure[]
-	 */
+	/** @var Closure[] */
 	private array $onDisableClosure = [];
 
 	protected function onLoad() : void
@@ -94,16 +96,12 @@ class Main extends PluginBase
 		EventLoader::loadEventWithClass($this, new PacketListener());
 	}
 
-	/**
-	 * @param Closure $closure
-	 * @return void
-	 */
 	public function addOnDisableClosure(Closure $closure) : void
 	{
 		$this->onDisableClosure[] = $closure;
 	}
 
-	protected function onDisable(): void
+	protected function onDisable() : void
 	{
 		$this->dataConnector?->waitAll();
 		$this->dataConnector?->close();
@@ -116,9 +114,6 @@ class Main extends PluginBase
 
 	/**
 	 * Load Modal query libasynql
-	 * @param Plugin $plugin
-	 * @param string $file
-	 * @return void
 	 */
 	public function loadMiddlewareQueryFile(Plugin $plugin, string $file) : void
 	{
@@ -129,18 +124,12 @@ class Main extends PluginBase
 		$this->dataConnector->loadQueryFile($resource);
 	}
 
-	/**
-	 * @return DataConnectorImpl|MongodmManager|null
-	 */
-	public function getDataConnector(): DataConnectorImpl|MongodmManager|null
+	public function getDataConnector() : DataConnectorImpl|MongodmManager|null
 	{
 		return $this->dataConnector;
 	}
 
-	/**
-	 * @return RedisManager|null
-	 */
-	public function getRedisConnector(): ?RedisManager
+	public function getRedisConnector() : ?RedisManager
 	{
 		return $this->redisConnector;
 	}
